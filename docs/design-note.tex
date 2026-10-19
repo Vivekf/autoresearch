@@ -31,7 +31,7 @@
 \titlespacing*{\subsection}{0pt}{1.1em}{0.4em}
 
 \pagestyle{fancy}\fancyhf{}
-\lhead{\small\color{mitred}15.773 \textbullet{} Lecture 4 \textbullet{} An Agent That Improves a Number}
+\lhead{\small\color{mitred}Autoresearch \textbullet{} An Agent That Improves a Number}
 \rhead{\small\thepage}
 \renewcommand{\headrulewidth}{0.4pt}
 
@@ -46,7 +46,7 @@
 \newcommand{\keyidea}[1]{\begin{idea}#1\end{idea}}
 \linespread{1.07}
 
-\lstdefinestyle{hodl}{
+\lstdefinestyle{code}{
   basicstyle=\ttfamily\small,
   backgroundcolor=\color{codebg},
   commentstyle=\color{comment}\itshape,
@@ -58,7 +58,7 @@
   framexleftmargin=10pt,
   aboveskip=10pt, belowskip=6pt,
 }
-\lstset{style=hodl}
+\lstset{style=code}
 \lstdefinelanguage{pseudo}{morekeywords={repeat,if,stop,return},morecomment=[l]{\#}}
 \definecolor{taskbg}{HTML}{E7EEF7}
 \definecolor{sandbg}{HTML}{E6F1EA}
@@ -89,10 +89,9 @@
 \begin{document}
 
 \begin{center}
-{\LARGE\bfseries\color{mitred} Lecture 4 — An Agent That Improves a Number}\\[0.4em]
+{\LARGE\bfseries\color{mitred} An Agent That Improves a Number}\\[0.4em]
 {\large\color{mitred} Design note}\\[0.6em]
-{\large 15.773 \ Intensive Hands-On Deep Learning}\\[0.25em]
-{\small MIT Sloan School of Management \textbullet{} Fall 2026 \textbullet{} Prof.\ Vivek Farias}
+{\small\color{midgrey} github.com/Vivekf/autoresearch}
 \end{center}
 
 \vspace{0.5em}\hrule height 0.9pt\vspace{1.2em}
@@ -130,9 +129,8 @@ line real --- of building a measurement the agent genuinely cannot influence.
 
 \subsection{The same cycle, mechanised}
 
-Lecture 3 ended with a claim: an agent is a prompt in a loop. Nothing today changes that. What
-changes is what is in the agent's hands --- and with the right two tools, the cycle above
-\emph{is} the agent loop.
+An agent is a prompt in a loop. What changes between one agent and another is what is in its
+hands --- and with the right two tools, the cycle above \emph{is} the agent loop.
 
 \begin{lstlisting}[language=pseudo]
 repeat:
@@ -315,8 +313,8 @@ controls which attempt counts as an improvement worth keeping, whether the leade
 running minimum or a maximum, what ``best so far'' means, and which way the gap between dev and
 test points.
 
-Get it wrong and the closing number of the lecture prints backwards. It did, until the harness
-was pointed at an accuracy task and reported a \emph{better} test score as evidence of optimism.
+Get it wrong and the closing number prints backwards. It did, until the harness was pointed at
+an accuracy task and reported a \emph{better} test score as evidence of optimism.
 
 The clamp belongs to the task rather than to the metric family --- RMSE does not know that
 ratings stop at 5 --- so it is a parameter, not a property.
@@ -361,7 +359,7 @@ worse one, reporting 0.8579 while submitting a 0.8616 model.
 both failures impossible to express.}
 
 \runin{Why there is a dev set \emph{and} a test set.}
-This is the idea the lecture closes on. Every time the agent reads a dev score and chooses what
+This is the idea everything else serves. Every time the agent reads a dev score and chooses what
 to try next, it spends a little information about dev. Do that twenty-eight times and dev has
 been \emph{fit} --- not by gradient descent, but through a sequence of keep-this, discard-that
 decisions. Each one is a parameter update made of judgement instead of derivatives.
@@ -529,13 +527,13 @@ only way the question we are asking stays an open one.
 The machinery is a vehicle for one question: \emph{what does an agent do when you give it a
 number and tell it to make the number better?}
 
-The short answer, across the runs recorded in \texttt{Supporting Material/Runs/}, is that it
+The short answer, across the runs recorded in \texttt{runs/}, is that it
 climbs a little way and then stops --- usually well short of what its own approach could have
 given it, sometimes without ever trying the structural change that would have mattered, and with
 enormous variance between runs of an identical configuration. One run never found matrix
 factorization at all. Another found it and under-trained it. A third kept going until it
 exhausted its budget and left nothing behind.
 
-That is the lecture. Everything above exists to make it measurable.
+That is the point. Everything above exists to make it measurable.
 
 \end{document}

@@ -1,6 +1,6 @@
 """Materialise a sample of what the agent sees, plus what it does not.
 
-    python3 make_sample.py              # the anonymised task the lecture uses
+    python3 make_sample.py              # the anonymised task (the default)
     python3 make_sample.py --labelled   # the same data with its identity intact
 
 Everything here is regenerable in seconds and safe to delete.

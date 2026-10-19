@@ -9,7 +9,7 @@ A Task is a held-out prediction problem:
     metric      how a prediction is scored
 
 Everything the prompt needs to say about the data is derived from those five things, so
-pointing the lecture at a different dataset is a new Task, not a rewritten prompt.
+pointing this at a different dataset is a new Task, not a rewritten prompt.
 """
 
 from __future__ import annotations
@@ -103,7 +103,7 @@ class Task:
 
         self = cls(name=name, blurb=blurb, keys=list(keys), target=target, metric=metric,
                    train=parts[0], dev=parts[1], test=parts[2],
-                   workdir=Path(tempfile.mkdtemp(prefix=f"hodl_{name}_")),
+                   workdir=Path(tempfile.mkdtemp(prefix=f"autoresearch_{name}_")),
                    features=list(features), train_only=list(train_only), notes=list(notes))
         self._write_agent_files(side_info)
         return self

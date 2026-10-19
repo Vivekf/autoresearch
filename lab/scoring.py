@@ -37,7 +37,7 @@ class Scorer:
         self.task = task
         self.trials: list[dict] = []
         self.submission: dict | None = None          # {attempt, score, path}
-        self._vault = Path(tempfile.mkdtemp(prefix="hodl_submission_"))
+        self._vault = Path(tempfile.mkdtemp(prefix="autoresearch_submission_"))
 
     # ---------------------------------------------------------------- the tool
 

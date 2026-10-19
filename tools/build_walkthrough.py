@@ -3,12 +3,12 @@ Build harness-walkthrough.ipynb -- the walkthrough notebook.
 
     cd "Supporting Material" && python3 build_walkthrough.py
 
-This is the teaching companion to Lec4-Design-Note.pdf and follows its structure exactly:
+This is the teaching companion to docs/design-note.pdf and follows its structure exactly:
 how research gets done, then the four things the loop needs (Task, Metric, Scorer, Sandbox),
 then the prompt assembled and dissected, then the loop itself.
 
-The other notebook -- HODL-FA26-Lec-4-Research-Agent.ipynb -- is the lean one that just runs
-the thing. Keep both; they are for different moments in the lecture.
+The other notebook -- research-agent.ipynb -- is the lean one that just runs the thing.
+Keep both; they are for different purposes.
 """
 import json
 from pathlib import Path
@@ -26,9 +26,9 @@ def co(s):
 
 
 md("""
-# Lecture 4a — The Harness
+# The Harness
 
-*Companion to `Lec4-Design-Note.pdf`, in the same order.*
+*Companion to `docs/design-note.pdf`, in the same order.*
 
 The other notebook runs the research agent. This one takes it apart: we build each piece, poke
 it until its behaviour is obvious, and only then assemble them into the thirty lines of text the
@@ -82,7 +82,7 @@ The third line is what separates research from guessing. **A result you chose is
 result you did not choose can contradict you.** Most of what follows is machinery for making that
 line real.
 
-Lecture 3 ended with the claim that an agent is a prompt in a loop. Give that loop two tools — a
+An agent is a prompt in a loop. Give that loop two tools — a
 way to *build* and a way to *measure* — and it becomes the cycle above:
 
 ```
@@ -229,7 +229,7 @@ md("""
 
 `lower_is_better` silently decides which attempt counts as an improvement worth keeping, whether
 the leaderboard runs a running minimum or maximum, what "best so far" means, and which way the
-gap between dev and test points. Get it wrong and the closing number of the lecture prints
+gap between dev and test points. Get it wrong and the closing number prints
 backwards — which it did, until the harness was pointed at an accuracy task.
 """)
 
@@ -565,7 +565,7 @@ md("""
 ## For reference: the ladder, measured
 
 What someone who knows this problem gets on the same split. The agent has seen none of it.
-Produced by `Supporting Material/measure_ladder.py`.
+Produced by `tools/measure_ladder.py`.
 
 | Approach | dev RMSE |
 |---|---|

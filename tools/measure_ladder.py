@@ -1,7 +1,7 @@
 """
-Measure the classical MovieLens-1M ladder on the Lecture 4 split.
+Measure the classical MovieLens-1M ladder on the task's split.
 
-These are the reference numbers in the notebook's closing table and on the deck. They are what a
+These are the reference numbers in the notebook's closing table. They are what a
 person who knows this problem would get on the *same* split the agent works against, so the
 agent's score can be read directly against them.
 

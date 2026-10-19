@@ -1,6 +1,6 @@
 # Sample working directory
 
-A materialised copy of what the Lecture 4 agent sees — and, next to it, what it does not.
+A materialised copy of what the agent sees — and, next to it, what it does not.
 Everything here is regenerated in seconds by `make_sample.py` and is safe to delete.
 
 ```
@@ -96,7 +96,7 @@ Some rungs to climb, in roughly increasing order of difficulty:
 | the same, regularized | ~0.91 |
 | something low-rank | ~0.85 |
 
-The last rung is where every interesting thing in the lecture happens. Three of the five
+The last rung is where the interesting things happen. Three of the five
 recorded agent runs never reached it.
 
 > **A caveat on those numbers.** The reference ladder in

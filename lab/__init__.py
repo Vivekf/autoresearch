@@ -1,4 +1,4 @@
-"""Plumbing for Lecture 4, so the notebook can be about the loop and the prompt.
+"""Plumbing, so the notebooks can be about the loop and the prompt.
 
     from lab import movielens, Sandbox, Scorer, Trace
 
@@ -8,7 +8,7 @@ Sandbox   runs the agent's Python - fresh process or persistent session
 Scorer    holds the held-out answers and turns a predictions file into one number
 Trace     prints the run and records what it cost
 
-Read these if you are curious. Nothing in them is the lecture.
+Read these if you are curious. Nothing in them is the idea.
 """
 
 from .task import Task, Metric, rmse, mae, accuracy

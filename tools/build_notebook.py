@@ -5,8 +5,8 @@ Run from this directory:  python3 build_notebook.py
 
 The notebook is deliberately thin. Everything mechanical - loading and anonymising the data,
 running the agent's Python, turning a predictions file into a number, printing and plotting -
-lives in the `lab` package one level up. What stays in the notebook is what the lecture is
-about: the tools, the prompt, and the loop.
+lives in the `lab` package one level up. What stays in the notebook is what matters:
+the tools, the prompt, and the loop.
 """
 import json
 from pathlib import Path
@@ -24,10 +24,10 @@ def co(s):
 
 
 md("""
-# Lecture 4 — An Agent That Improves a Number
+# An Agent That Improves a Number
 
-In Lecture 3 the coding agent stopped when **the code ran**. That is a real signal, but a weak
-one: a program that runs is not a program that is right.
+A coding agent usually stops when **the code ran**. That is a real signal, but a weak one:
+a program that runs is not a program that is right.
 
 Today the agent stops on something much stronger — **a number that moved on data it cannot
 see.** We give it a dataset, a held-out set whose answers it has no access to, and one
@@ -47,7 +47,7 @@ md("""
 
 Everything mechanical lives in the `lab` package next to this notebook, so that the three
 things worth reading — the **tools**, the **prompt** and the **loop** — fit on a screen each.
-Open `lab/` if you are curious; nothing in there is the lecture.
+Open `lab/` if you are curious; nothing in there is the idea.
 
 **Why the agent cannot cheat.** The held-out values exist only as an array in *this* process.
 The agent's code runs elsewhere, in a scratch directory holding only the files above. And the
@@ -200,9 +200,8 @@ print(PROMPT)''')
 md("""
 ## The loop
 
-This is the whole agent. It is the same loop as Lecture 3 and it has not grown: send the
-conversation, run whatever tools the model asked for, append the results, send it back. Stop
-when it stops asking.
+This is the whole agent, and it is about twenty lines: send the conversation, run whatever
+tools the model asked for, append the results, send it back. Stop when it stops asking.
 
 Everything that makes an agent interesting — the planning, the backtracking, the decision to
 try factorization after biases stall — happens inside `client.chat.completions.create`. None of
@@ -278,7 +277,7 @@ md("""
 ## For reference: the ladder, measured
 
 What someone who knows this problem would get, on this same split. The agent has seen none of
-it. Produced by `Supporting Material/measure_ladder.py`.
+it. Produced by `tools/measure_ladder.py`.
 
 | Approach | dev RMSE |
 |---|---|

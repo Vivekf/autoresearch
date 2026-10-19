@@ -2,7 +2,7 @@
 
 Two flavours, same interface:
 
-  Sandbox(workdir, persistent=False)   a fresh process every call - Lecture 3's tool.
+  Sandbox(workdir, persistent=False)   a fresh process on every call.
   Sandbox(workdir, persistent=True)    one process that stays alive, like a notebook kernel.
 
 The difference is what a marginal experiment costs. With a fresh process, "train five more
