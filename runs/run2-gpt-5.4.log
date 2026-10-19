@@ -1,0 +1,724 @@
+1,000,209 ratings | 6,040 users | 3,706 movies
+train 800,167   dev 100,020   test 100,022
+dev users unseen in train: 0  | dev movies unseen: 16
+/var/folders/6r/1_x4fj4x65dbb19ntgffggq40000gn/T/hodl_research_k4x6t3ay 
+
+  dev_pairs.csv       1.0 MB
+  movies.csv          0.2 MB
+  test_pairs.csv      1.0 MB
+  train.csv          17.3 MB
+You are a machine learning researcher. Your job is to predict held-out
+movie ratings as accurately as possible. The metric is RMSE on a held-out set. Lower is better.
+
+Your working directory contains:
+  train.csv       user,movie,rating,timestamp   (800,167 rows)  - your training data
+  dev_pairs.csv   user,movie                    (100,020 rows)  - predict these
+  test_pairs.csv  user,movie                    (100,022 rows)  - predict these at the very end
+  movies.csv      movie,title,genres,year                  - optional side information
+
+For each attempt:
+  1. Use run_python to train a model on train.csv and write predictions.csv with columns
+     user,movie,prediction - one row for every row of dev_pairs.csv.
+  2. Call score to get the dev RMSE.
+  3. Use that number to decide what to try next.
+
+You cannot see the true dev ratings. score is the only way to learn how you are doing.
+
+Guidance:
+- Start with the simplest thing that works, measure it, and improve from there.
+- Change one thing at a time, so you know what caused a change in the score.
+- Only numpy and pandas are guaranteed to be available.
+- Each run_python call is a fresh process - nothing persists except files you write.
+- Keep an eye on wall-clock time: a model that takes three minutes to fit is one you cannot
+  iterate on.
+
+When you are no longer making progress, write test_predictions.csv for test_pairs.csv using
+your best model, then stop and report what you tried and what worked.
+
+
+########## MODEL: gpt-5.4 ##########
+
+
+--- the agent calls run_python ---
+import pandas as pd
+import numpy as np
+
+train = pd.read_csv('train.csv')
+dev = pd.read_csv('dev_pairs.csv')
+movies = pd.read_csv('movies.csv')
+print(train.head())
+print(train.shape, dev.shape, movies.shape)
+print('users', train.user.nunique(), 'movies', train.movie.nunique())
+print('rating mean', train.rating.mean(), 'std', train.rating.std())
+print('rating min/max', train.rating.min(), train.rating.max())
+print('user count quantiles', train.groupby('user').size().quantile([0,.25,.5,.75,.9,.99,1]))
+print('movie count quantiles', train.groupby('movie').size().quantile([0,.25,.5,.75,.9,.99,1]))
+
+# baseline: global mean
+mu = train.rating.mean()
+pred = dev.copy()
+pred['prediction'] = mu
+pred.to_csv('predictions.csv', index=False)
+print('wrote baseline predictions')
+--- run_python returned ---
+user  movie  rating  timestamp
+0  4041   2541       2  965513569
+1   655   1041       5  975698169
+2   967   1784       4  975116155
+3  4698   1923       3  963587731
+4  2326    173       3  974433465
+(800167, 4) (100020, 2) (3883, 4)
+users 6040 movies 3679
+rating mean 3.581148685211962 std 1.117052722049947
+rating min/max 1 5
+user count quantiles 0.00      12.00
+0.25      35.00
+0.50      76.00
+0.75     166.00
+0.90     319.00
+0.99     722.83
+1.00    1854.00
+dtype: float64
+movie count quantiles 0.00       1.00
+0.25      27.00
+0.50     102.00
+0.75     280.00
+0.90     586.40
+0.99    1427.76
+1.00    2744.00
+dtype: float64
+wrote baseline predictions
+
+
+--- the agent calls score() ---
+--- score returned ---
+dev RMSE = 1.1154   (attempt 1, best so far 1.1154)
+
+
+--- the agent calls run_python ---
+import pandas as pd
+import numpy as np
+
+train = pd.read_csv('train.csv')
+dev = pd.read_csv('dev_pairs.csv')
+
+mu = train.rating.mean()
+movie_stats = train.groupby('movie').rating.agg(['mean','count'])
+# simple shrinkage toward global mean
+alpha = 10.0
+movie_pred = mu + (movie_stats['mean'] - mu) * (movie_stats['count'] / (movie_stats['count'] + alpha))
+
+pred = dev.copy()
+pred = pred.merge(movie_pred.rename('prediction'), left_on='movie', right_index=True, how='left')
+pred['prediction'] = pred['prediction'].fillna(mu).clip(1,5)
+pred.to_csv('predictions.csv', index=False)
+print('done', mu, pred.prediction.mean())
+--- run_python returned ---
+done 3.581148685211962 3.5927426236078754
+
+
+--- the agent calls score() ---
+--- score returned ---
+dev RMSE = 0.9775   (attempt 2, best so far 0.9775)
+
+Good start:
+- Global mean baseline: RMSE 1.1154
+- Movie-mean with shrinkage: RMSE 0.9775
+
+Next I’ll add user effects on top of movie effects, still keeping it simple and fast.
+
+--- the agent calls run_python ---
+import pandas as pd
+import numpy as np
+
+train = pd.read_csv('train.csv')
+dev = pd.read_csv('dev_pairs.csv')
+
+mu = train.rating.mean()
+lam_m = 10.0
+lam_u = 15.0
+
+# movie bias
+movie_grp = train.groupby('movie').rating.agg(['sum','count'])
+b_m = (movie_grp['sum'] - mu * movie_grp['count']) / (movie_grp['count'] + lam_m)
+train2 = train.join(b_m.rename('b_m'), on='movie')
+
+# user bias after movie bias
+resid = train2['rating'] - mu - train2['b_m']
+user_df = pd.DataFrame({'user': train2['user'], 'resid': resid})
+user_grp = user_df.groupby('user').resid.agg(['sum','count'])
+b_u = user_grp['sum'] / (user_grp['count'] + lam_u)
+
+pred = dev.copy()
+pred = pred.merge(b_m.rename('b_m'), left_on='movie', right_index=True, how='left')
+pred = pred.merge(b_u.rename('b_u'), left_on='user', right_index=True, how='left')
+pred['b_m'] = pred['b_m'].fillna(0.0)
+pred['b_u'] = pred['b_u'].fillna(0.0)
+pred['prediction'] = (mu + pred['b_m'] + pred['b_u']).clip(1,5)
+pred[['user','movie','prediction']].to_csv('predictions.csv', index=False)
+print('pred stats', pred.prediction.describe())
+--- run_python returned ---
+pred stats count    100020.000000
+mean          3.579612
+std           0.624668
+min           1.000000
+25%           3.197792
+50%           3.646168
+75%           4.027827
+max           5.000000
+Name: prediction, dtype: float64
+
+
+--- the agent calls score() ---
+--- score returned ---
+dev RMSE = 0.9066   (attempt 3, best so far 0.9066)
+
+Nice improvement:
+- + user bias on top of movie bias: RMSE 0.9066
+
+That’s a strong classical baseline. Next I’ll tune the regularization a bit to see if there’s easy gain before trying latent factors.
+
+--- the agent calls run_python ---
+import pandas as pd
+import numpy as np
+
+train = pd.read_csv('train.csv')
+dev = pd.read_csv('dev_pairs.csv')
+mu = train.rating.mean()
+
+best = None
+for lam_m in [3,5,8,10,12,15,20,30]:
+    movie_grp = train.groupby('movie').rating.agg(['sum','count'])
+    b_m = (movie_grp['sum'] - mu * movie_grp['count']) / (movie_grp['count'] + lam_m)
+    train2 = train.join(b_m.rename('b_m'), on='movie')
+    resid = train2['rating'] - mu - train2['b_m']
+    user_df = pd.DataFrame({'user': train2['user'], 'resid': resid})
+    for lam_u in [3,5,8,10,12,15,20,30,50]:
+        user_grp = user_df.groupby('user').resid.agg(['sum','count'])
+        b_u = user_grp['sum'] / (user_grp['count'] + lam_u)
+        pred = dev.copy()
+        pred = pred.merge(b_m.rename('b_m'), left_on='movie', right_index=True, how='left')
+        pred = pred.merge(b_u.rename('b_u'), left_on='user', right_index=True, how='left')
+        pred['prediction'] = (mu + pred['b_m'].fillna(0) + pred['b_u'].fillna(0)).clip(1,5)
+        pred[['user','movie','prediction']].to_csv('predictions.csv', index=False)
+        print('wrote', lam_m, lam_u)
+        break
+    break
+print('done')
+--- run_python returned ---
+wrote 3 3
+done
+
+I realized scoring inside a Python loop isn’t possible here, so I’ll do a more meaningful next step instead: train a matrix factorization model with user/movie biases using SGD, which usually improves substantially over pure biases.
+
+--- the agent calls run_python ---
+import pandas as pd
+import numpy as np
+import time
+
+train = pd.read_csv('train.csv')
+dev = pd.read_csv('dev_pairs.csv')
+
+# map ids to contiguous indices
+user_ids = np.sort(train.user.unique())
+movie_ids = np.sort(train.movie.unique())
+u2i = {u:i for i,u in enumerate(user_ids)}
+m2i = {m:i for i,m in enumerate(movie_ids)}
+
+u = train.user.map(u2i).to_numpy(np.int32)
+m = train.movie.map(m2i).to_numpy(np.int32)
+r = train.rating.to_numpy(np.float64)
+
+n_users = len(user_ids)
+n_movies = len(movie_ids)
+mu = r.mean()
+
+k = 20
+epochs = 12
+lr = 0.01
+reg = 0.05
+reg_b = 0.02
+rng = np.random.default_rng(0)
+P = rng.normal(0, 0.1, size=(n_users, k))
+Q = rng.normal(0, 0.1, size=(n_movies, k))
+bu = np.zeros(n_users)
+bi = np.zeros(n_movies)
+
+idx = np.arange(len(r))
+for ep in range(epochs):
+    rng.shuffle(idx)
+    se = 0.0
+    t0 = time.time()
+    for j in idx:
+        uu = u[j]; ii = m[j]; rr = r[j]
+        pred = mu + bu[uu] + bi[ii] + np.dot(P[uu], Q[ii])
+        err = rr - pred
+        se += err * err
+        bu[uu] += lr * (err - reg_b * bu[uu])
+        bi[ii] += lr * (err - reg_b * bi[ii])
+        pu = P[uu].copy()
+        qi = Q[ii].copy()
+        P[uu] += lr * (err * qi - reg * pu)
+        Q[ii] += lr * (err * pu - reg * qi)
+    rmse = np.sqrt(se / len(r))
+    print(f'epoch {ep+1} train_rmse {rmse:.4f} time {time.time()-t0:.1f}s')
+    if ep in [5,8]:
+        lr *= 0.7
+
+# predictions
+pred = dev.copy()
+pred_u = pred.user.map(u2i)
+pred_m = pred.movie.map(m2i)
+out = np.full(len(pred), mu, dty
+--- run_python returned ---
+epoch 1 train_rmse 0.9583 time 3.9s
+epoch 2 train_rmse 0.9132 time 4.0s
+epoch 3 train_rmse 0.9056 time 4.0s
+epoch 4 train_rmse 0.9016 time 4.0s
+epoch 5 train_rmse 0.8977 time 4.0s
+epoch 6 train_rmse 0.8920 time 4.0s
+epoch 7 train_rmse 0.8836 time 4.1s
+epoch 8 train_rmse 0.8774 time 4.0s
+epoch 9 train_rmse 0.8714 time 4.0s
+epoch 10 train_rmse 0.8649 time 4.0s
+epoch 11 train_rmse 0.8607 time 4.0s
+epoch 12 train_rmse 0.8568 time 4.0s
+wrote predictions
+
+
+--- the agent calls score() ---
+--- score returned ---
+dev RMSE = 0.8772   (attempt 4, best so far 0.8772)
+
+Great — matrix factorization helped a lot:
+- Bias-only model: 0.9066
+- MF with biases, 20 factors: 0.8772
+
+Now I’ll tune the MF hyperparameters. I’ll try a stronger model first: a bit more latent dimension and epochs, with slightly adjusted regularization.
+
+--- the agent calls run_python ---
+import pandas as pd
+import numpy as np
+import time
+
+train = pd.read_csv('train.csv')
+dev = pd.read_csv('dev_pairs.csv')
+
+user_ids = np.sort(train.user.unique())
+movie_ids = np.sort(train.movie.unique())
+u2i = {u:i for i,u in enumerate(user_ids)}
+m2i = {m:i for i,m in enumerate(movie_ids)}
+u = train.user.map(u2i).to_numpy(np.int32)
+m = train.movie.map(m2i).to_numpy(np.int32)
+r = train.rating.to_numpy(np.float64)
+
+n_users = len(user_ids)
+n_movies = len(movie_ids)
+mu = r.mean()
+
+k = 40
+epochs = 15
+lr = 0.008
+reg = 0.06
+reg_b = 0.02
+rng = np.random.default_rng(1)
+P = rng.normal(0, 0.07, size=(n_users, k))
+Q = rng.normal(0, 0.07, size=(n_movies, k))
+bu = np.zeros(n_users)
+bi = np.zeros(n_movies)
+
+idx = np.arange(len(r))
+for ep in range(epochs):
+    rng.shuffle(idx)
+    se = 0.0
+    t0 = time.time()
+    for j in idx:
+        uu = u[j]; ii = m[j]; rr = r[j]
+        pred = mu + bu[uu] + bi[ii] + np.dot(P[uu], Q[ii])
+        err = rr - pred
+        se += err * err
+        bu[uu] += lr * (err - reg_b * bu[uu])
+        bi[ii] += lr * (err - reg_b * bi[ii])
+        pu = P[uu].copy()
+        qi = Q[ii].copy()
+        P[uu] += lr * (err * qi - reg * pu)
+        Q[ii] += lr * (err * pu - reg * qi)
+    print(f'epoch {ep+1} train_rmse {np.sqrt(se/len(r)):.4f} time {time.time()-t0:.1f}s')
+    if ep in [5,10]:
+        lr *= 0.7
+
+pred = dev.copy()
+pred_u = pred.user.map(u2i)
+pred_m = pred.movie.map(m2i)
+out = np.full(len(pred), mu, dtype=np.float64)
+mask = pred_u.notna() & pred_m.notna()
+ui = pr
+--- run_python returned ---
+epoch 1 train_rmse 0.9652 time 4.1s
+epoch 2 train_rmse 0.9159 time 4.0s
+epoch 3 train_rmse 0.9073 time 4.1s
+epoch 4 train_rmse 0.9033 time 4.0s
+epoch 5 train_rmse 0.9008 time 4.0s
+epoch 6 train_rmse 0.8984 time 3.9s
+epoch 7 train_rmse 0.8945 time 3.9s
+epoch 8 train_rmse 0.8918 time 4.0s
+epoch 9 train_rmse 0.8884 time 4.0s
+epoch 10 train_rmse 0.8845 time 4.0s
+epoch 11 train_rmse 0.8804 time 4.1s
+epoch 12 train_rmse 0.8757 time 4.1s
+epoch 13 train_rmse 0.8727 time 4.1s
+epoch 14 train_rmse 0.8699 time 4.0s
+epoch 15 train_rmse 0.8671 time 4.0s
+wrote predictions
+
+
+--- the agent calls score() ---
+--- score returned ---
+dev RMSE = 0.8832   (attempt 5, best so far 0.8772)
+
+That was worse, so the previous 20-factor model generalizes better than this 40-factor setting.
+
+Next I’ll try a slightly smaller / more regularized MF variant rather than only making it bigger.
+
+--- the agent calls run_python ---
+import pandas as pd
+import numpy as np
+import time
+
+train = pd.read_csv('train.csv')
+dev = pd.read_csv('dev_pairs.csv')
+
+user_ids = np.sort(train.user.unique())
+movie_ids = np.sort(train.movie.unique())
+u2i = {u:i for i,u in enumerate(user_ids)}
+m2i = {m:i for i,m in enumerate(movie_ids)}
+u = train.user.map(u2i).to_numpy(np.int32)
+m = train.movie.map(m2i).to_numpy(np.int32)
+r = train.rating.to_numpy(np.float64)
+mu = r.mean()
+
+n_users = len(user_ids)
+n_movies = len(movie_ids)
+k = 30
+epochs = 14
+lr = 0.01
+reg = 0.08
+reg_b = 0.03
+rng = np.random.default_rng(2)
+P = rng.normal(0, 0.06, size=(n_users, k))
+Q = rng.normal(0, 0.06, size=(n_movies, k))
+bu = np.zeros(n_users)
+bi = np.zeros(n_movies)
+idx = np.arange(len(r))
+
+for ep in range(epochs):
+    rng.shuffle(idx)
+    se = 0.0
+    t0 = time.time()
+    for j in idx:
+        uu = u[j]; ii = m[j]; rr = r[j]
+        pred = mu + bu[uu] + bi[ii] + np.dot(P[uu], Q[ii])
+        err = rr - pred
+        se += err*err
+        bu[uu] += lr*(err - reg_b*bu[uu])
+        bi[ii] += lr*(err - reg_b*bi[ii])
+        pu = P[uu].copy(); qi = Q[ii].copy()
+        P[uu] += lr*(err*qi - reg*pu)
+        Q[ii] += lr*(err*pu - reg*qi)
+    print('epoch', ep+1, 'train_rmse', round(np.sqrt(se/len(r)),4), 'time', round(time.time()-t0,1))
+    if ep in [5,9]: lr *= 0.7
+
+pred = dev.copy()
+pred_u = pred.user.map(u2i)
+pred_m = pred.movie.map(m2i)
+out = np.full(len(pred), mu)
+mask = pred_u.notna() & pred_m.notna()
+ui = pred_u[mask].astype(int).to_numpy(); mi = pred_m[
+--- run_python returned ---
+epoch 1 train_rmse 0.958 time 4.0
+epoch 2 train_rmse 0.9144 time 4.0
+epoch 3 train_rmse 0.9078 time 4.0
+epoch 4 train_rmse 0.9051 time 3.9
+epoch 5 train_rmse 0.9036 time 4.0
+epoch 6 train_rmse 0.9024 time 4.0
+epoch 7 train_rmse 0.8994 time 4.0
+epoch 8 train_rmse 0.8977 time 4.0
+epoch 9 train_rmse 0.8955 time 4.1
+epoch 10 train_rmse 0.8928 time 4.0
+epoch 11 train_rmse 0.8887 time 4.0
+epoch 12 train_rmse 0.8862 time 3.9
+epoch 13 train_rmse 0.8839 time 4.0
+epoch 14 train_rmse 0.8816 time 4.0
+wrote predictions
+
+
+--- the agent calls score() ---
+--- score returned ---
+dev RMSE = 0.8903   (attempt 6, best so far 0.8772)
+
+Also worse. So far, the best is still:
+
+- MF with biases, 20 factors, 12 epochs: **0.8772**
+
+I’ll try one more meaningful improvement: blend the strong bias-only model with the MF model. Blending often lowers RMSE because the models make different errors.
+
+--- the agent calls run_python ---
+import pandas as pd
+import numpy as np
+import time
+
+train = pd.read_csv('train.csv')
+dev = pd.read_csv('dev_pairs.csv')
+
+# ---------- bias model ----------
+mu = train.rating.mean()
+lam_m = 10.0
+lam_u = 15.0
+movie_grp = train.groupby('movie').rating.agg(['sum','count'])
+b_m = (movie_grp['sum'] - mu * movie_grp['count']) / (movie_grp['count'] + lam_m)
+train2 = train.join(b_m.rename('b_m'), on='movie')
+resid = train2['rating'] - mu - train2['b_m']
+user_grp = pd.DataFrame({'user': train2['user'], 'resid': resid}).groupby('user').resid.agg(['sum','count'])
+b_u = user_grp['sum'] / (user_grp['count'] + lam_u)
+
+bias_pred = dev.copy()
+bias_pred = bias_pred.merge(b_m.rename('b_m'), left_on='movie', right_index=True, how='left')
+bias_pred = bias_pred.merge(b_u.rename('b_u'), left_on='user', right_index=True, how='left')
+bias_vals = (mu + bias_pred['b_m'].fillna(0).to_numpy() + bias_pred['b_u'].fillna(0).to_numpy())
+
+# ---------- best MF model ----------
+user_ids = np.sort(train.user.unique())
+movie_ids = np.sort(train.movie.unique())
+u2i = {u:i for i,u in enumerate(user_ids)}
+m2i = {m:i for i,m in enumerate(movie_ids)}
+u = train.user.map(u2i).to_numpy(np.int32)
+m = train.movie.map(m2i).to_numpy(np.int32)
+r = train.rating.to_numpy(np.float64)
+
+n_users = len(user_ids)
+n_movies = len(movie_ids)
+k = 20
+epochs = 12
+lr = 0.01
+reg = 0.05
+reg_b = 0.02
+rng = np.random.default_rng(0)
+P = rng.normal(0, 0.1, size=(n_users, k))
+Q = rng.normal(0, 0.1, size=(n_movies, k))
+bu = np.zeros(n_users)
+bi = n
+--- run_python returned ---
+wrote blended predictions
+
+
+--- the agent calls score() ---
+--- score returned ---
+dev RMSE = 0.8818   (attempt 7, best so far 0.8772)
+
+Blend was worse. So the current best remains the plain 20-factor MF model at **0.8772**.
+
+I’ll do one final targeted attempt: same general MF idea, but a bit longer training with slightly more conservative learning-rate decay, since the training error was still going down and the best model may have been undertrained.
+
+--- the agent calls run_python ---
+import pandas as pd
+import numpy as np
+import time
+
+train = pd.read_csv('train.csv')
+dev = pd.read_csv('dev_pairs.csv')
+
+user_ids = np.sort(train.user.unique())
+movie_ids = np.sort(train.movie.unique())
+u2i = {u:i for i,u in enumerate(user_ids)}
+m2i = {m:i for i,m in enumerate(movie_ids)}
+u = train.user.map(u2i).to_numpy(np.int32)
+m = train.movie.map(m2i).to_numpy(np.int32)
+r = train.rating.to_numpy(np.float64)
+
+n_users = len(user_ids)
+n_movies = len(movie_ids)
+mu = r.mean()
+
+k = 20
+epochs = 16
+lr = 0.008
+reg = 0.05
+reg_b = 0.02
+rng = np.random.default_rng(3)
+P = rng.normal(0, 0.1, size=(n_users, k))
+Q = rng.normal(0, 0.1, size=(n_movies, k))
+bu = np.zeros(n_users)
+bi = np.zeros(n_movies)
+
+idx = np.arange(len(r))
+for ep in range(epochs):
+    rng.shuffle(idx)
+    se = 0.0
+    t0 = time.time()
+    for j in idx:
+        uu = u[j]; ii = m[j]; rr = r[j]
+        pred = mu + bu[uu] + bi[ii] + np.dot(P[uu], Q[ii])
+        err = rr - pred
+        se += err * err
+        bu[uu] += lr * (err - reg_b * bu[uu])
+        bi[ii] += lr * (err - reg_b * bi[ii])
+        pu = P[uu].copy()
+        qi = Q[ii].copy()
+        P[uu] += lr * (err * qi - reg * pu)
+        Q[ii] += lr * (err * pu - reg * qi)
+    print(f'epoch {ep+1} train_rmse {np.sqrt(se/len(r)):.4f} time {time.time()-t0:.1f}s')
+    if ep in [6,11]:
+        lr *= 0.75
+
+pred = dev.copy()
+pred_u = pred.user.map(u2i)
+pred_m = pred.movie.map(m2i)
+out = np.full(len(pred), mu, dtype=np.float64)
+mask = pred_u.notna() & pred_m.notna()
+ui = pre
+--- run_python returned ---
+epoch 1 train_rmse 0.9657 time 4.0s
+epoch 2 train_rmse 0.9162 time 4.0s
+epoch 3 train_rmse 0.9072 time 4.0s
+epoch 4 train_rmse 0.9030 time 4.0s
+epoch 5 train_rmse 0.9002 time 4.0s
+epoch 6 train_rmse 0.8976 time 4.0s
+epoch 7 train_rmse 0.8940 time 4.0s
+epoch 8 train_rmse 0.8885 time 4.1s
+epoch 9 train_rmse 0.8837 time 4.0s
+epoch 10 train_rmse 0.8785 time 4.0s
+epoch 11 train_rmse 0.8731 time 4.0s
+epoch 12 train_rmse 0.8677 time 4.0s
+epoch 13 train_rmse 0.8619 time 4.0s
+epoch 14 train_rmse 0.8580 time 3.9s
+epoch 15 train_rmse 0.8541 time 4.0s
+epoch 16 train_rmse 0.8504 time 4.1s
+wrote predictions
+
+
+--- the agent calls score() ---
+--- score returned ---
+dev RMSE = 0.8740   (attempt 8, best so far 0.8740)
+
+Nice — that final tuning helped. New best dev RMSE: **0.8740**.
+
+At this point we have a solid improvement path and a best model to use for test. I’ll now train that best configuration on all training data and write `test_predictions.csv`.
+
+--- the agent calls run_python ---
+import pandas as pd
+import numpy as np
+import time
+
+train = pd.read_csv('train.csv')
+test = pd.read_csv('test_pairs.csv')
+
+user_ids = np.sort(train.user.unique())
+movie_ids = np.sort(train.movie.unique())
+u2i = {u:i for i,u in enumerate(user_ids)}
+m2i = {m:i for i,m in enumerate(movie_ids)}
+u = train.user.map(u2i).to_numpy(np.int32)
+m = train.movie.map(m2i).to_numpy(np.int32)
+r = train.rating.to_numpy(np.float64)
+
+n_users = len(user_ids)
+n_movies = len(movie_ids)
+mu = r.mean()
+
+# best dev configuration
+k = 20
+epochs = 16
+lr = 0.008
+reg = 0.05
+reg_b = 0.02
+rng = np.random.default_rng(3)
+P = rng.normal(0, 0.1, size=(n_users, k))
+Q = rng.normal(0, 0.1, size=(n_movies, k))
+bu = np.zeros(n_users)
+bi = np.zeros(n_movies)
+idx = np.arange(len(r))
+
+for ep in range(epochs):
+    rng.shuffle(idx)
+    se = 0.0
+    for j in idx:
+        uu = u[j]; ii = m[j]; rr = r[j]
+        pred = mu + bu[uu] + bi[ii] + np.dot(P[uu], Q[ii])
+        err = rr - pred
+        se += err * err
+        bu[uu] += lr * (err - reg_b * bu[uu])
+        bi[ii] += lr * (err - reg_b * bi[ii])
+        pu = P[uu].copy()
+        qi = Q[ii].copy()
+        P[uu] += lr * (err * qi - reg * pu)
+        Q[ii] += lr * (err * pu - reg * qi)
+    print(f'epoch {ep+1} train_rmse {np.sqrt(se/len(r)):.4f}')
+    if ep in [6,11]:
+        lr *= 0.75
+
+pred_u = test.user.map(u2i)
+pred_m = test.movie.map(m2i)
+out = np.full(len(test), mu, dtype=np.float64)
+mask = pred_u.notna() & pred_m.notna()
+ui = pred_u[mask].astype(int).to_numpy()
+mi = p
+--- run_python returned ---
+epoch 1 train_rmse 0.9657
+epoch 2 train_rmse 0.9162
+epoch 3 train_rmse 0.9072
+epoch 4 train_rmse 0.9030
+epoch 5 train_rmse 0.9002
+epoch 6 train_rmse 0.8976
+epoch 7 train_rmse 0.8940
+epoch 8 train_rmse 0.8885
+epoch 9 train_rmse 0.8837
+epoch 10 train_rmse 0.8785
+epoch 11 train_rmse 0.8731
+epoch 12 train_rmse 0.8677
+epoch 13 train_rmse 0.8619
+epoch 14 train_rmse 0.8580
+epoch 15 train_rmse 0.8541
+epoch 16 train_rmse 0.8504
+wrote test_predictions.csv (100022, 3)
+
+Done — I built and iteratively improved a rating predictor, and wrote:
+
+- `predictions.csv` for dev during tuning
+- `test_predictions.csv` for the final test set
+
+Progress summary:
+1. Global mean baseline: **1.1154**
+2. Movie mean with shrinkage: **0.9775**
+3. User + movie bias model: **0.9066**
+4. Matrix factorization with biases (20 factors): **0.8772**
+5. Larger 40-factor MF: **0.8832** worse
+6. More regularized 30-factor MF: **0.8903** worse
+7. Blend of bias model + MF: **0.8818** worse
+8. Tuned MF with longer training / gentler decay: **0.8740** best
+
+Best model:
+- Biased matrix factorization
+- 20 latent factors
+- SGD training
+- 16 epochs
+- learning rate 0.008 with decay after epochs 7 and 12
+- factor regularization 0.05
+- bias regularization 0.02
+
+Final best dev RMSE: **0.8740**
+
+I also generated `test_predictions.csv` using that best configuration.
+
+=== finished after 19 turns ===
+
+=== TRIALS ===
+1 1.1154
+2 0.9775
+3 0.9066
+4 0.8772
+5 0.8832
+6 0.8903
+7 0.8818
+8 0.874
+prompt tokens by turn: [545, 1105, 1151, 1379, 1425, 1956, 2002, 2482, 3571, 3617, 4751, 4797, 5851, 5897, 6996, 7042, 8196, 8242, 9282]
+TOTAL prompt: 80287 completion: 6972
+best dev: 0.874 | TEST: 0.8817116918884591

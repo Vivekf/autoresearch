@@ -1,0 +1,9 @@
+numpy
+pandas
+matplotlib
+openai>=1.40
+python-dotenv
+
+# optional: the sandbox reports whatever it finds, and the agent will use these if present
+scipy
+scikit-learn

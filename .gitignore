@@ -1,0 +1,16 @@
+.env
+cache.json
+__pycache__/
+*.pyc
+.DS_Store
+.ipynb_checkpoints/
+
+# regenerated locally by sample/make_sample.py
+sample/agent-sees/
+sample/withheld/
+
+# LaTeX build artefacts
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.synctex.gz
