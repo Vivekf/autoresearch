@@ -1,9 +1,0 @@
-numpy
-pandas
-matplotlib
-openai>=1.40
-python-dotenv
-
-[extras]
-scipy
-scikit-learn

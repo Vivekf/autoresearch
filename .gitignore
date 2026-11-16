@@ -14,3 +14,8 @@ docs/*.aux
 docs/*.log
 docs/*.out
 docs/*.synctex.gz
+
+# packaging artefacts
+build/
+dist/
+*.egg-info/
