@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autoresearch"
+version = "0.1.0"
+description = "An agent that is given a number and told to make the number better."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "openai>=1.40",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+# The sandbox reports whatever it finds and the agent uses what is there, so these are a
+# convenience on a bare machine rather than a requirement. Colab ships them already.
+extras = ["scipy", "scikit-learn"]
+
+[project.urls]
+Homepage = "https://github.com/Vivekf/autoresearch"
+
+[tool.setuptools]
+# `lab` is the import name the notebook and the design note both use. It is a generic
+# top-level name to put on a machine's path; it is kept because every reference in the repo
+# depends on it, and because the place this gets installed is usually a throwaway runtime.
+packages = ["lab"]

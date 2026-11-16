@@ -36,10 +36,20 @@ strip them out and the model starts from nothing every turn.
 The repo ships with a rating-prediction task built from MovieLens 1M. Start here — it takes a
 couple of minutes and the behaviour is much easier to reason about once you've watched it.
 
+**On Colab** — nothing to install, nothing to clone:
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Vivekf/autoresearch/blob/main/research-agent.ipynb)
+
+The notebook's first cell fetches this package from GitHub. Put your key in Colab's secrets —
+the key icon in the left sidebar, add `OPENAI_API_KEY`, allow the notebook access — and run the
+cells top to bottom. Secrets are never written into the `.ipynb`.
+
+**On a laptop:**
+
 ```bash
 git clone https://github.com/Vivekf/autoresearch
 cd autoresearch
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ### Without an API key — play the agent's part yourself
@@ -84,6 +94,8 @@ never reached it.
 
 ### With an API key — let the agent do it
 
+Open `research-agent.ipynb`, on Colab through the badge above or locally:
+
 ```bash
 cp .env.example .env          # add your OPENAI_API_KEY
 jupyter lab research-agent.ipynb
@@ -94,8 +106,13 @@ API spend and 20–40 minutes for a full run. You'll see the agent climb — glo
 per-item means, then biases, then if it's having a good day, matrix factorization — with the
 leaderboard, the context curve, and an honest test score at the end.
 
-`harness-walkthrough.ipynb` is the slower version: it builds each component, pokes it until its
-behaviour is obvious, then assembles the prompt and shows where every line of it came from.
+It is a long run of blocking API calls, so on Colab keep the tab alive; an idle runtime is
+disconnected and takes the agent's session with it. Free-tier CPU is slower than a laptop,
+which means fewer epochs inside each step's timeout, so read your score against `runs/` rather
+than against someone else's machine.
+
+`docs/design-note.pdf` is the slower path through the same material: each component on its own,
+then the prompt dissected line by line against where each line came from.
 
 ---
 
@@ -130,7 +147,7 @@ def sensors(seed=773):
 
 ### Change one line
 
-In either notebook's setup cell:
+In the notebook's setup cell:
 
 ```python
 from lab.datasets import sensors   # instead of: from lab import movielens
@@ -230,11 +247,10 @@ If you're building your own task from data the model has never seen, you don't n
 | | |
 |---|---|
 | `lab/` | `Task` and `Metric`, concrete `datasets`, the `Sandbox`, the `Scorer`, and `Trace`. |
-| `research-agent.ipynb` | The lean notebook — tools, prompt, loop, run. |
-| `harness-walkthrough.ipynb` | Builds each component and shows where every line of the prompt came from. |
+| `research-agent.ipynb` | The notebook — tools, prompt, loop, run. Opens on Colab or locally. |
 | `runs/` | Four complete recorded runs, with the findings written up. |
 | `tools/measure_ladder.py` | The reference ladder: what a person who knows the problem gets on the same split. |
-| `tools/build_*.py` | The notebooks are generated. Edit these, not the `.ipynb`. |
+| `tools/build_notebook.py` | The notebook is generated. Edit this, not the `.ipynb`. |
 | `sample/` | Materialise the agent's working directory; try the task by hand. |
 | `docs/design-note.pdf` | The full write-up: how research gets done, the four components, the prompt dissected. |
 

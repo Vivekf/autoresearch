@@ -1,0 +1,14 @@
+LICENSE
+README.md
+pyproject.toml
+autoresearch.egg-info/PKG-INFO
+autoresearch.egg-info/SOURCES.txt
+autoresearch.egg-info/dependency_links.txt
+autoresearch.egg-info/requires.txt
+autoresearch.egg-info/top_level.txt
+lab/__init__.py
+lab/datasets.py
+lab/sandbox.py
+lab/scoring.py
+lab/task.py
+lab/trace.py

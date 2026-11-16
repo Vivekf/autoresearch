@@ -45,9 +45,9 @@ md("""
 | **Tools** | `run_python` and `score`. That is the entire toolkit. |
 | **The loop** | Build a model → predict → score → decide what to try next. Repeat. |
 
-Everything mechanical lives in the `lab` package next to this notebook, so that the three
-things worth reading — the **tools**, the **prompt** and the **loop** — fit on a screen each.
-Open `lab/` if you are curious; nothing in there is the idea.
+Everything mechanical lives in the `lab` package, so that the three things worth reading —
+the **tools**, the **prompt** and the **loop** — fit on a screen each. The setup cell below
+fetches it. Read it if you are curious; nothing in there is the idea.
 
 **Why the agent cannot cheat.** The held-out values exist only as an array in *this* process.
 The agent's code runs elsewhere, in a scratch directory holding only the files above. And the
@@ -55,16 +55,46 @@ split is a random permutation under a seed it never sees — so even the origina
 would not tell it which rows were held out.
 """)
 
-md("## Setup")
+md("""
+## Setup
+
+Runs the same way on Colab and on a laptop.
+
+**On Colab** the cell below installs the `lab` package from GitHub, and your key comes from
+Colab's secrets — the key icon in the left sidebar, add `OPENAI_API_KEY`, allow this notebook
+access. A secret is never written into the `.ipynb`, so the notebook stays safe to share.
+
+**On a laptop**, with the repo checked out beside you, the install is skipped and the key is
+read from the environment or a `.env` file.
+""")
+
+co('''# Fetch the lab package, unless it is already here.
+import importlib, subprocess, sys
+
+try:
+    import lab
+except ModuleNotFoundError:
+    subprocess.run([sys.executable, "-m", "pip", "install", "-q",
+                    "git+https://github.com/Vivekf/autoresearch"], check=True)
+    importlib.invalidate_caches()
+    import lab
+
+print("lab", lab.__file__)''')
 
 co('''import json
-from openai import OpenAI
-from dotenv import load_dotenv, find_dotenv
 import os
+from openai import OpenAI
 
 from lab import movielens, Sandbox, Scorer, Trace
 
-load_dotenv(find_dotenv(usecwd=True))
+# The key goes in the environment, never in the notebook itself.
+try:
+    from google.colab import userdata                 # Colab: the key icon in the sidebar
+    os.environ["OPENAI_API_KEY"] = userdata.get("OPENAI_API_KEY")
+except Exception:
+    from dotenv import load_dotenv, find_dotenv       # laptop: the environment, or a .env
+    load_dotenv(find_dotenv(usecwd=True))
+
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"], timeout=300)
 
 MODEL      = "gpt-5.5"
